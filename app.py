@@ -8,7 +8,7 @@ import requests
 
 # --- CONFIG ---
 st.set_page_config(page_title="AgriVision AI", page_icon="🌱")
-API_KEY = "PASTE_YOUR_API_KEY_HERE"  # <--- Put your key from OpenWeatherMap here!
+API_KEY = "cb6b7d8b6f065f45d9dcca171bc7112a"  # <--- Put your key from OpenWeatherMap here!
 
 def get_live_weather(city="Kano"):
     try:
