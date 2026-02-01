@@ -4,76 +4,74 @@ import time
 import random
 from gtts import gTTS
 import io
+import requests
 
-# Page Config
+# --- CONFIG ---
 st.set_page_config(page_title="AgriVision AI", page_icon="🌱")
+API_KEY = "PASTE_YOUR_API_KEY_HERE"  # <--- Put your key from OpenWeatherMap here!
+
+def get_live_weather(city="Kano"):
+    try:
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
+        data = requests.get(url).json()
+        temp = data['main']['temp']
+        rain_chance = data.get('clouds', {}).get('all', 0) # Use cloud cover as rain proxy for free tier
+        description = data['weather'][0]['description']
+        return temp, rain_chance, description
+    except:
+        return 32.0, 10, "connection error (using backup data)"
 
 # --- TRANSLATIONS ---
 translations = {
-    "Healthy": {
-        "Pidgin": "Your leaf de okay, no problem at all!",
-        "Hausa": "Shukarka tana da lafiya, babu matsala!"
-    },
-    "Cassava Mosaic Disease": {
-        "Pidgin": "This one na Cassava Mosaic. The leaf de change color.",
-        "Hausa": "Wannan cutar Mosaic ce ta rogo. Ganye yana canza launi."
-    },
-    "Maize Rust": {
-        "Pidgin": "Maize Rust de here. You go see brown spots.",
-        "Hausa": "Tsatsar masara ce. Za ka ga digon kasa-kasa."
-    }
+    "Healthy": {"Pidgin": "Your leaf de okay!", "Hausa": "Shukarka tana da lafiya!"},
+    "Cassava Mosaic Disease": {"Pidgin": "This one na Cassava Mosaic.", "Hausa": "Wannan cutar Mosaic ce."},
+    "Maize Rust": {"Pidgin": "Maize Rust de here.", "Hausa": "Tsatsar masara ce."}
 }
 
 st.title("🌱 AgriVision AI: Plant Doctor")
+
+# 1. LIVE WEATHER SECTION
+st.header("📍 Real-Time Environment")
+city_input = st.text_input("Enter your city:", "Kano")
+live_temp, live_rain, live_desc = get_live_weather(city_input)
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Temperature", f"{live_temp}°C")
+col2.metric("Humidity/Rain", f"{live_rain}%")
+col3.write(f"**Sky:** {live_desc.capitalize()}")
+
 st.markdown("---")
 
-# 1. SIDEBAR (Restoring the Weather Feature)
-st.sidebar.header("📍 Location: Kano, Nigeria")
-temp = st.sidebar.slider("Current Temperature (°C)", 20, 45, 32)
-rain_chance = st.sidebar.slider("Rain Probability (%)", 0, 100, 10)
-
-# 2. IMAGE UPLOAD
+# 2. IMAGE UPLOAD & AI SCAN
 st.header("📸 Scan Your Crop")
-uploaded_file = st.file_uploader("Upload a leaf photo", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload a leaf photo", type=["jpg", "png"])
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Scanning...", use_container_width=True)
-    
+if uploaded_file:
+    st.image(Image.open(uploaded_file), use_container_width=True)
     with st.status("AI Analyzing...", expanded=False):
         time.sleep(2)
         diagnosis = random.choice(["Healthy", "Cassava Mosaic Disease", "Maize Rust"])
-        st.write(f"Result: {diagnosis}")
-
+    
     st.subheader(f"Diagnosis: {diagnosis}")
 
-    # 3. VOICE ADVICE
+    # 3. LOCAL VOICE
     st.markdown("### 🔊 Listen to Advice")
-    lang_choice = st.radio("Select Language:", ["English", "Pidgin", "Hausa"], horizontal=True)
-
-    if lang_choice == "English":
-        speech_text = f"The diagnosis is {diagnosis}. Current rain chance is {rain_chance} percent."
-        tts_lang = 'en'
+    lang = st.radio("Language:", ["English", "Pidgin", "Hausa"], horizontal=True)
+    
+    if lang == "English":
+        txt = f"The diagnosis is {diagnosis}. It is {live_temp} degrees in {city_input}."
     else:
-        speech_text = translations.get(diagnosis, {}).get(lang_choice, "Language not supported yet.")
-        tts_lang = 'en' if lang_choice == "Pidgin" else 'ha'
+        txt = translations.get(diagnosis, {}).get(lang)
 
     if st.button("Play Voice Advice"):
-        try:
-            tts = gTTS(text=speech_text, lang=tts_lang)
-            fp = io.BytesIO()
-            tts.write_to_fp(fp)
-            st.audio(fp, format='audio/mp3')
-            st.write(f"🗨️ {speech_text}")
-        except Exception as e:
-            st.error("Voice engine is warming up. Please try again in 5 seconds.")
+        tts = gTTS(text=txt, lang='en' if lang != 'Hausa' else 'ha')
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        st.audio(fp)
 
-    # 4. SMART ADVICE (Based on weather)
+    # 4. SMART ADVICE
     st.subheader("💡 Action Plan")
-    if rain_chance > 70:
-        st.warning("⚠️ DO NOT SPRAY. Rain will wash it away.")
+    if live_rain > 70:
+        st.error(f"⚠️ DO NOT SPRAY. Live data shows high rain risk in {city_input}.")
     else:
-        st.success("✅ Weather is clear for treatment.")
-
-else:
-    st.info("Upload a photo to see the Weather and AI Advice.")
+        st.success(f"✅ Conditions in {city_input} are clear for treatment.")
