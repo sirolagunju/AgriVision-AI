@@ -21,7 +21,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. DATA & API ---
-API_KEY = "cb6b7d8b6f065f45d9dcca171bc7112a"# <--- RE-PASTE YOUR KEY HERE!
+API_KEY = "cb6b7d8b6f065f45d9dcca171bc7112a"  # <--- DON'T FORGET YOUR KEY
 
 disease_db = {
     "Healthy": {
@@ -55,9 +55,16 @@ def get_live_weather(city="Kano"):
     except:
         return 32.5, 20, "sunny intervals (Simulated)"
 
-# --- 4. THE APP INTERFACE ---
+# --- 4. APP LOGIC WITH MEMORY (SESSION STATE) ---
+
+# Initialize Session State if not present
+if 'diagnosis' not in st.session_state:
+    st.session_state.diagnosis = None
+if 'scanned' not in st.session_state:
+    st.session_state.scanned = False
+
 st.title("🌿 AgriVision AI")
-st.caption("Precision Agriculture System v2.0")
+st.caption("Precision Agriculture System v2.1")
 
 # Weather Section
 st.subheader("📍 Field Conditions")
@@ -98,18 +105,33 @@ uploaded_file = st.file_uploader("Upload Leaf Image", type=["jpg", "png"])
 if uploaded_file:
     st.image(Image.open(uploaded_file), caption="Analyzing Specimen...", use_container_width=True)
     
-    if st.button("Start Diagnosis"):
-        # Fake Loading
-        progress_text = "Initializing Neural Network..."
-        my_bar = st.progress(0, text=progress_text)
-        for percent in [20, 40, 60, 80, 100]:
-            time.sleep(0.2)
-            my_bar.progress(percent, text="Scanning...")
+    # Logic: Only show "Start Diagnosis" if we haven't scanned yet, OR if the user wants to rescan
+    if not st.session_state.scanned:
+        if st.button("Start Diagnosis"):
+            # Fake Loading Animation
+            progress_text = "Initializing Neural Network..."
+            my_bar = st.progress(0, text=progress_text)
+            for percent in [20, 40, 60, 80, 100]:
+                time.sleep(0.2)
+                my_bar.progress(percent, text="Scanning...")
             
-        diagnosis = random.choice(list(disease_db.keys()))
+            # Save result to MEMORY (Session State)
+            st.session_state.diagnosis = random.choice(list(disease_db.keys()))
+            st.session_state.scanned = True
+            st.rerun() # Force a reload to show the result immediately
+
+    # If scan is complete, show the results (this persists even when clicking other buttons)
+    if st.session_state.scanned and st.session_state.diagnosis:
+        diagnosis = st.session_state.diagnosis
         info = disease_db[diagnosis]
         
         st.success(f"**DIAGNOSIS: {diagnosis.upper()}**")
+        
+        # Reset Button (to scan again)
+        if st.button("🔄 New Scan"):
+            st.session_state.scanned = False
+            st.session_state.diagnosis = None
+            st.rerun()
         
         # Tabs
         tab1, tab2, tab3 = st.tabs(["💊 Treatment", "🔊 Voice Advice", "🛒 Marketplace"])
@@ -126,25 +148,19 @@ if uploaded_file:
             st.write("Listen in local language:")
             lang = st.radio("Select:", ["Pidgin", "Hausa"], horizontal=True)
             
-            # --- THE FIXED AUDIO SECTION ---
             if st.button("▶️ Play Audio"):
                 try:
                     with st.spinner("Generating Voice Note..."):
-                        # Select language code
                         lang_code = 'en' if lang == "Pidgin" else 'ha'
                         text_to_speak = info[lang.lower()]
                         
-                        # Create audio
                         tts = gTTS(text=text_to_speak, lang=lang_code)
                         fp = io.BytesIO()
                         tts.write_to_fp(fp)
-                        
-                        # THE MAGIC FIX: Rewind the file pointer
                         fp.seek(0)
                         
                         st.audio(fp, format='audio/mp3')
                         st.caption(f"Playing: '{text_to_speak}'")
-                        
                 except Exception as e:
                     st.error(f"Voice Error: {e}")
 
@@ -153,4 +169,6 @@ if uploaded_file:
             st.button("🛒 Buy Recommended Fungicide (Demo)")
 
 else:
+    # If no file is uploaded, reset the state
+    st.session_state.scanned = False
     st.info("👆 Upload a photo to begin.")
