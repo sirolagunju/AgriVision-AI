@@ -29,22 +29,29 @@ disease_db = {
         "treatment": "Continue current irrigation and fertilizer schedule.",
         "chemical": "N/A",
         "pidgin": "Your farm dey bam! No wahala here.",
-        "hausa": "Shukarka tana da lafiya. Ci gaba da kula da ita."
+        "hausa": "Shukarka tana da lafiya. Ci gaba da kula.",
+        "yoruba": "Irugbin rẹ wa ni ilera to dara. Tẹsiwaju bi o ṣe n ṣe.",
+        "igbo": "Ihe ubi gị dị mma. Gaa n'ihu na-elekọta ya."
     },
     "Cassava Mosaic Disease": {
         "desc": "Viral infection causing yellow twisted leaves.",
         "treatment": "Uproot infected plants immediately to stop spread.",
         "chemical": "No chemical cure. Plant resistant varieties like TME 419.",
         "pidgin": "This one na Mosaic Virus. Pull the bad ones commot quick quick!",
-        "hausa": "Wannan cutar Mosaic ce. Cire masu cutar ku kona su."
+        "hausa": "Wannan cutar Mosaic ce. Cire masu cutar ku kona su.",
+        "yoruba": "Aisan Mosaic ni eyi. Fa awọn ti o ni arun na tu kuro.",
+        "igbo": "Nke a bụ ọrịa Mosaic. Wepụ ndị ahụ metụtara ozugbo."
     },
     "Maize Rust": {
         "desc": "Fungal infection showing brown powdery pustules.",
         "treatment": "Apply fungicide if infection covers >10% of leaf.",
         "chemical": "Recommended: Mancozeb 80% WP or Strobilurin.",
         "pidgin": "Na Rust disease be this. You need spray Mancozeb medicine.",
-        "hausa": "Wannan tsatsa ce. Yi amfani da maganin Mancozeb."
+        "hausa": "Wannan tsatsa ce. Yi amfani da maganin Mancozeb.",
+        "yoruba": "Aisan ipata agbado ni eyi. Lo oogun Mancozeb.",
+        "igbo": "Nke a bụ ọrịa nchara ọka. Jiri ọgwụ Mancozeb mee ihe."
     }
+
 }
 
 def get_live_weather(city="Kano"):
@@ -144,26 +151,44 @@ if uploaded_file:
             else:
                 st.success("✅ Weather is clear for treatment.")
 
-        with tab2:
-            st.write("Listen in local language:")
-            lang = st.radio("Select:", ["Pidgin", "Hausa"], horizontal=True)
+       with tab2:
+            st.markdown("### 🗣️ Native Voice Assistant")
+            st.write("Select your preferred language:")
+            
+            # 1. Expanded Language Selector
+            lang_choice = st.radio(
+                "Language:", 
+                ["English", "Pidgin", "Hausa", "Yoruba", "Igbo"], 
+                horizontal=True
+            )
             
             if st.button("▶️ Play Audio"):
                 try:
-                    with st.spinner("Generating Voice Note..."):
-                        lang_code = 'en' if lang == "Pidgin" else 'ha'
-                        text_to_speak = info[lang.lower()]
+                    with st.spinner(f"Generating {lang_choice} Audio..."):
+                        # 2. Map choice to Google Language Codes
+                        # Note: Pidgin uses English engine but with our custom text
+                        lang_map = {
+                            "English": "en",
+                            "Pidgin": "en", 
+                            "Hausa": "ha",
+                            "Yoruba": "yo",
+                            "Igbo": "ig"
+                        }
                         
+                        lang_code = lang_map[lang_choice]
+                        text_to_speak = info[lang_choice.lower()]
+                        
+                        # 3. Generate Audio
                         tts = gTTS(text=text_to_speak, lang=lang_code)
                         fp = io.BytesIO()
                         tts.write_to_fp(fp)
                         fp.seek(0)
                         
                         st.audio(fp, format='audio/mp3')
-                        st.caption(f"Playing: '{text_to_speak}'")
+                        st.success(f"Playing advice in {lang_choice}")
+                        
                 except Exception as e:
-                    st.error(f"Voice Error: {e}")
-
+                    st.error("Audio service is busy. Please try again in 5 seconds.")
         with tab3:
             st.write("Partner Suppliers:")
             st.button("🛒 Buy Recommended Fungicide (Demo)")
